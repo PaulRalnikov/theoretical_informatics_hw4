@@ -1,4 +1,5 @@
 import java.io.File
+import java.util.*
 import kotlin.math.max
 
 class DFA(val n : Int = 0,
@@ -46,24 +47,58 @@ class DFA(val n : Int = 0,
 
         fun getType(v : Int) = type[v]
 
+
+        //перенумеровывает состояния в последовательность 1..n
         fun compress()  {
-            TODO()
+            //переименовывает состояние oldNum в newNum
+            fun renameType(oldNum : Int, newNum : Int) {
+                typeContent[oldNum].forEach { type[it] = newNum }
+                typeContent[newNum] = typeContent[oldNum]
+                typeContent[oldNum] = mutableListOf()
+            }
+
+            var iFree = 0
+            val newNextFreeType = typeContent.count { it.isNotEmpty() }
+            for (i in 0 until nextFreeType) {
+                while (iFree < i && typeContent[iFree].isNotEmpty()) ++iFree
+                if (typeContent[i].isEmpty() || i == iFree) continue
+                renameType(i, iFree)
+            }
+            nextFreeType = newNextFreeType
+        }
+
+        fun print() {
+            println("typeContent:")
+            for (t in 0 until nextFreeType) {
+                if (typeContent[t].isNotEmpty()) {
+                    println("type $t:")
+                    println(typeContent[t])
+                }
+            }
+            println("=====================")
         }
     }
 
-    fun minimize() : DFA {
-        val category = Category(Array(n) {
-            if (it in finish) 1 else 0
+
+    //работает только с автоматами, где все состояния достижимы
+    private fun minimize() : DFA {
+        val dfa = deleteUnreachableStates()
+        val category = Category(Array(dfa.n) {
+            if (it in dfa.finish) 1 else 0
         })
+        println("start types:")
+        category.print()
         var flag = true
         while (flag) {
             flag = false
             for (type in category.typeContent.withIndex()) {
+                if (type.value.isEmpty()) continue
                 var deletedType = false
                 for (letter in 0 until m) {
                     val outgoingTypes : Set<Int> = type.value.map {v -> category.getType(go[v][letter])}.toSet()
                     if (outgoingTypes.size == 1) continue
                     deletedType = true
+                    println("find type for split ${type.value} by letter $letter")
 
                     //numeratedOutgoingTypes says number of new class by type of the vertex
                     val numeratedOutgoingTypes : Map<Int, Int> = outgoingTypes.mapIndexed {idx, it -> it to idx}.toMap()
@@ -87,6 +122,10 @@ class DFA(val n : Int = 0,
                     break
                 }
             }
+            if (flag) {
+                println("new configuration:")
+                category.print()
+            }
         }
         category.compress()
         val newN = category.nextFreeType
@@ -101,6 +140,83 @@ class DFA(val n : Int = 0,
             }
         }
         return DFA(newN, newM, newStart, newFinish, newGo)
+    }
+
+    fun equalOther (dfa : DFA) : Boolean {
+        if (n != dfa.n || m != dfa.m) return false
+        if (finish.count() != dfa.finish.count()) return false
+        val accordance = mutableMapOf<Int, Int>()
+        accordance[start] = dfa.start
+        val queue : Queue<Int> = LinkedList()
+        queue.add(start)
+        val used = mutableSetOf<Int>()
+        while (queue.isNotEmpty()) {
+            val v = queue.poll().toInt()
+            if (used.contains(v)) continue
+            used.add(v)
+            val u = accordance.getOrDefault(v, -1)
+            for (letter in 0 until m) {
+                if (used.contains(go[v][letter])) continue
+                if (!accordance.containsKey(go[v][letter])) {
+                    accordance[go[v][letter]] = go[u][letter]
+                    queue.add(go[v][letter])
+                }
+                if (accordance.getOrDefault(go[v][letter], -1) != go[u][letter])
+                    return false
+            }
+        }
+        return true
+    }
+
+    fun deleteUnreachableStates() : DFA {
+        var newN = 0
+        val newM = m
+        val newStart = 0
+        val newFinish = mutableSetOf<Int>()
+        val newGo : MutableList<Array<Int> > = mutableListOf()
+
+        val newIndex = mutableMapOf<Int, Int>()
+        val queue : Queue<Int> = LinkedList()
+        val used = mutableSetOf<Int>()
+
+        newIndex[start] = newN++
+        newGo.add(Array(newM) {-1})
+
+        queue.add(start)
+
+        while (queue.isNotEmpty()) {
+            val v = queue.poll().toInt()
+            println("processing vertex $v")
+
+            if (used.contains(v)) continue
+            used.add(v)
+
+            val newV = newIndex.getOrDefault(v, -1)
+            if (finish.contains(v)) newFinish.add(newV)
+
+            for (letter in 0 until m) {
+                val to = go[v][letter]
+
+                if (!newIndex.containsKey(to)) {
+                    newIndex[to] = newN++
+                    newGo.add(Array(newM) {-1})
+                }
+
+                val newTo = newIndex.getOrDefault(to, -1)
+                newGo[newV][letter] = newTo
+
+                if (!used.contains(to)) {
+                    queue.add(to)
+                }
+            }
+        }
+        return DFA(
+            newN,
+            newM,
+            newStart,
+            newFinish,
+            newGo.toTypedArray()
+        )
     }
 
     fun printToFile(outputFile : File) {
@@ -118,31 +234,35 @@ class DFA(val n : Int = 0,
         }
     }
 
-}
+    companion object {
+        fun getMinimised(dfa : DFA) = dfa.deleteUnreachableStates().minimize()
 
-fun readDfa(inputFile : File) : DFA {
-    inputFile.bufferedReader().use {reader ->
-        val n = reader.readLine().toInt()
-        val m = reader.readLine().toInt()
+        fun read(inputFile : File) : DFA {
+            inputFile.bufferedReader().use {reader ->
+                val n = reader.readLine().toInt()
+                val m = reader.readLine().toInt()
 
-        val start = reader.readLine().toInt()
-        val finish = reader.readLine().split(" ").map {it.toInt()}.toSet()
+                val start = reader.readLine().toInt()
+                val finish = reader.readLine().split(" ").map {it.toInt()}.toSet()
 
-        val go = Array(n) {
-            Array(m) { 0 }
-        }
+                val go = Array(n) {
+                    Array(m) { 0 }
+                }
 
-        while(true) {
-            try {
-                val splitted: List<Int> = reader.readLine().split(" ").map {it.toInt()}
-                val from : Int = splitted[0]
-                val symbol : Int = splitted[1]
-                val to : Int = splitted[2]
-                go[from][symbol] = to
-            } catch (e : Exception) {
-                break
+                while(true) {
+                    try {
+                        val splitted: List<Int> = reader.readLine().split(" ").map {it.toInt()}
+                        val from : Int = splitted[0]
+                        val symbol : Int = splitted[1]
+                        val to : Int = splitted[2]
+                        go[from][symbol] = to
+                    } catch (e : Exception) {
+                        break
+                    }
+                }
+                return DFA(n, m, start, finish, go)
             }
         }
-        return DFA(n, m, start, finish, go)
     }
 }
+

@@ -5,6 +5,7 @@ fun main() {
     val inputPath = readlnOrNull().toString()
     println("enter relative path to result file:")
     val resultPath = readlnOrNull().toString()
-    val dfa = readDfa(File(inputPath))
-    dfa.minimize().printToFile(File(resultPath))
+    val dfa = DFA.read(File(inputPath))
+    DFA.getMinimised(dfa).printToFile(File(resultPath))
+    println("Minimised DFA written to output file!")
 }
