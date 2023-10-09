@@ -9,6 +9,37 @@ class DFA(val n : Int = 0,
           val go : Array<Array<Int>> = emptyArray()
 ) {
 
+    companion object {
+        fun getMinimised(dfa : DFA) = dfa.deleteUnreachableStates().minimize()
+
+        fun read(inputFile : File) : DFA {
+            inputFile.bufferedReader().use {reader ->
+                val n = reader.readLine().toInt()
+                val m = reader.readLine().toInt()
+
+                val start = reader.readLine().toInt()
+                val finish = reader.readLine().split(" ").map {it.toInt()}.toSet()
+
+                val go = Array(n) {
+                    Array(m) { 0 }
+                }
+
+                while(true) {
+                    try {
+                        val splitted: List<Int> = reader.readLine().split(" ").map {it.toInt()}
+                        val from : Int = splitted[0]
+                        val symbol : Int = splitted[1]
+                        val to : Int = splitted[2]
+                        go[from][symbol] = to
+                    } catch (e : Exception) {
+                        break
+                    }
+                }
+                return DFA(n, m, start, finish, go)
+            }
+        }
+    }
+
     inner class Category (val type : Array<Int>) {
         val typeContent : MutableList<MutableList<Int>>
         var nextFreeType : Int
@@ -82,12 +113,13 @@ class DFA(val n : Int = 0,
 
     //работает только с автоматами, где все состояния достижимы
     private fun minimize() : DFA {
+
         val dfa = deleteUnreachableStates()
         val category = Category(Array(dfa.n) {
             if (it in dfa.finish) 1 else 0
         })
-        println("start types:")
-        category.print()
+//        println("start types:")
+//        category.print()
         var flag = true
         while (flag) {
             flag = false
@@ -98,7 +130,9 @@ class DFA(val n : Int = 0,
                     val outgoingTypes : Set<Int> = type.value.map {v -> category.getType(go[v][letter])}.toSet()
                     if (outgoingTypes.size == 1) continue
                     deletedType = true
-                    println("find type for split ${type.value} by letter $letter")
+//                    println("find type for split ${type.value} by letter $letter")
+//                    println("outgoingTypes: $outgoingTypes")
+//                    type.value.forEach {v -> println("go from vertex $v letter $letter to vertex ${go[v][letter]} type ${category.getType(go[v][letter])}") }
 
                     //numeratedOutgoingTypes says number of new class by type of the vertex
                     val numeratedOutgoingTypes : Map<Int, Int> = outgoingTypes.mapIndexed {idx, it -> it to idx}.toMap()
@@ -122,10 +156,10 @@ class DFA(val n : Int = 0,
                     break
                 }
             }
-            if (flag) {
-                println("new configuration:")
-                category.print()
-            }
+//            if (flag) {
+//                println("new configuration:")
+//                category.print()
+//            }
         }
         category.compress()
         val newN = category.nextFreeType
@@ -186,7 +220,6 @@ class DFA(val n : Int = 0,
 
         while (queue.isNotEmpty()) {
             val v = queue.poll().toInt()
-            println("processing vertex $v")
 
             if (used.contains(v)) continue
             used.add(v)
@@ -230,37 +263,6 @@ class DFA(val n : Int = 0,
                 for (c in 0 until m) {
                     it.println("$i $c ${go[i][c]}")
                 }
-            }
-        }
-    }
-
-    companion object {
-        fun getMinimised(dfa : DFA) = dfa.deleteUnreachableStates().minimize()
-
-        fun read(inputFile : File) : DFA {
-            inputFile.bufferedReader().use {reader ->
-                val n = reader.readLine().toInt()
-                val m = reader.readLine().toInt()
-
-                val start = reader.readLine().toInt()
-                val finish = reader.readLine().split(" ").map {it.toInt()}.toSet()
-
-                val go = Array(n) {
-                    Array(m) { 0 }
-                }
-
-                while(true) {
-                    try {
-                        val splitted: List<Int> = reader.readLine().split(" ").map {it.toInt()}
-                        val from : Int = splitted[0]
-                        val symbol : Int = splitted[1]
-                        val to : Int = splitted[2]
-                        go[from][symbol] = to
-                    } catch (e : Exception) {
-                        break
-                    }
-                }
-                return DFA(n, m, start, finish, go)
             }
         }
     }

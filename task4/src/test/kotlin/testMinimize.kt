@@ -8,17 +8,41 @@ internal class TestMinimize {
 
     @Test
     fun test_1() {
-        val inputPath = testData + "test1/" + inputFilename
-        val expectedOutputPath = testData + "test1/" + expectedOutputFilename
-//        val outputPath = kotlin.io.path.createTempFile().toString()
-        val outputPath = testData + "test1/output.txt"
+        val testDir = "test1/"
+        val inputPath = testData + testDir + inputFilename
+        val expectedOutputPath = testData + testDir + expectedOutputFilename
 
         val dfa = DFA.read(File(inputPath))
         val minimizedDfa = DFA.getMinimised(dfa)
-
-        minimizedDfa.printToFile(File(outputPath))
-
         val rightDfa = DFA.read(File(expectedOutputPath))
+
+        assert(minimizedDfa.equalOther(rightDfa))
+    }
+
+    @Test
+    fun test_2() {
+        val testDir = "test2/"
+        val inputPath = testData + testDir + inputFilename
+        val expectedOutputPath = testData + testDir + expectedOutputFilename
+
+        val dfa = DFA.read(File(inputPath))
+        val minimizedDfa = DFA.getMinimised(dfa)
+        val rightDfa = DFA.read(File(expectedOutputPath))
+
+        assert(minimizedDfa.equalOther(rightDfa))
+    }
+
+    @Test
+    fun test_3() {
+        val testDir = "test3/"
+        val inputPath = testData + testDir + inputFilename
+        val expectedOutputPath = testData + testDir + expectedOutputFilename
+
+        val dfa = DFA.read(File(inputPath))
+        val minimizedDfa = DFA.getMinimised(dfa)
+        val rightDfa = DFA.read(File(expectedOutputPath))
+
+
 
         assert(minimizedDfa.equalOther(rightDfa))
     }
